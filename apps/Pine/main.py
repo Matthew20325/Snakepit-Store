@@ -94,10 +94,24 @@ def launch_app(parent):
         else:
             exe_label.configure(text="Window not found!")
             return
+        # Set window style to borderless (windowed fullscreen)
+        GWL_STYLE = -16
+        WS_POPUP = 0x80000000
+        SWP_SHOWWINDOW = 0x0040
+        # Remove window borders and title bar
+        style = ctypes.windll.user32.GetWindowLongW(embedded_hwnd, GWL_STYLE)
+        style &= ~(0x00CF0000 | 0x00040000 | 0x00020000 | 0x00010000 | 0x00080000)  # Remove caption, thickframe, sysmenu, minimize, maximize
+        style |= WS_POPUP
+        ctypes.windll.user32.SetWindowLongW(embedded_hwnd, GWL_STYLE, style)
+        # Resize/move the window to cover the entire screen
+        ctypes.windll.user32.SetWindowPos(embedded_hwnd, None, 0, 0, APP_WIDTH, APP_HEIGHT, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW)
+        # Maximize the embedded window as if the user clicked the maximize button
+        WM_SYSCOMMAND = 0x0112
+        SC_MAXIMIZE = 0xF030
+        ctypes.windll.user32.ShowWindow(embedded_hwnd, 3)  # SW_MAXIMIZE
+        ctypes.windll.user32.PostMessageW(embedded_hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0)
         # Set parent to our frame
         SetParent(embedded_hwnd, frame.winfo_id())
-        # Resize/move the window to fit the frame
-        SetWindowPos(embedded_hwnd, None, 0, 0, frame.winfo_width(), frame.winfo_height(), SWP_NOZORDER | SWP_NOACTIVATE)
         exe_label.configure(text=f"Embedded: {selected_exe}")
         # Get window rect and log resolution
         rect = ctypes.wintypes.RECT()
@@ -106,11 +120,19 @@ def launch_app(parent):
         height = rect.bottom - rect.top
         #with open("log.txt", "a") as logf:
         #    logf.write(f"Embedded EXE: {selected_exe}\nResolution: {width}x{height}\n\n")
+        maximize_embedded()
+
+    def maximize_embedded():
+        if embedded_hwnd:
+            WM_SYSCOMMAND = 0x0112
+            SC_MAXIMIZE = 0xF030
+            ctypes.windll.user32.ShowWindow(embedded_hwnd, 3)  # SW_MAXIMIZE
+            ctypes.windll.user32.PostMessageW(embedded_hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0)
 
     exe_btn = ctk.CTkButton(frame, text="Select EXE", command=select_exe)
     exe_btn.pack(pady=10)
     exe_label = ctk.CTkLabel(frame, text="No EXE selected")
     exe_label.pack(pady=5)
 
-    embed_btn = ctk.CTkButton(frame, text="Embed EXE Window", command=embed_exe)
+    embed_btn = ctk.CTkButton(frame, text="Start EXE", command=embed_exe)
     embed_btn.pack(pady=10)
